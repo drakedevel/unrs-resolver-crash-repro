@@ -284,10 +284,7 @@ fn try_insert() {
 
         assert_eq!(
             map.try_insert(42, 2, &guard),
-            Err(OccupiedError {
-                current: &1,
-                not_inserted: 2
-            })
+            Err(OccupiedError { current: &1, not_inserted: 2 })
         );
         assert_eq!(map.len(), 1);
 
@@ -377,13 +374,7 @@ fn compute() {
             map.compute(i, |_| Operation::Insert::<_, ()>(1));
             assert_eq!(map.len(), 1);
 
-            assert_eq!(
-                map.compute(i, compute),
-                Compute::Updated {
-                    old: (&i, &1),
-                    new: (&i, &2),
-                }
-            );
+            assert_eq!(map.compute(i, compute), Compute::Updated { old: (&i, &1), new: (&i, &2) });
             assert_eq!(map.compute(i, compute), Compute::Removed(&i, &2));
             assert_eq!(map.len(), 0);
         }
@@ -718,10 +709,8 @@ fn extend() {
 
         (&map).extend(entries.clone().into_iter());
 
-        let mut collected: Vec<(usize, usize)> = map
-            .iter(&guard)
-            .map(|(key, value)| (*key, *value))
-            .collect();
+        let mut collected: Vec<(usize, usize)> =
+            map.iter(&guard).map(|(key, value)| (*key, *value)).collect();
         collected.sort_unstable();
 
         assert_eq!(entries, collected);

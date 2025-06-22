@@ -11,10 +11,7 @@ pub fn with_map<K, V>(mut test: impl FnMut(&dyn Fn() -> HashMap<K, V>)) {
     if !cfg!(papaya_stress) {
         test(
             &(|| {
-                HashMap::builder()
-                    .collector(collector())
-                    .resize_mode(ResizeMode::Blocking)
-                    .build()
+                HashMap::builder().collector(collector()).resize_mode(ResizeMode::Blocking).build()
             }),
         );
     }
@@ -49,23 +46,11 @@ pub fn with_set<K>(mut test: impl FnMut(&dyn Fn() -> HashSet<K>)) {
     }
 
     // Incremental resize mode with a small chunk to stress operations on nested tables.
-    test(
-        &(|| {
-            HashSet::builder()
-                .resize_mode(ResizeMode::Incremental(1))
-                .build()
-        }),
-    );
+    test(&(|| HashSet::builder().resize_mode(ResizeMode::Incremental(1)).build()));
 
     // Incremental resize mode with a medium-sized chunk to promote interference with incremental
     // resizing.
-    test(
-        &(|| {
-            HashSet::builder()
-                .resize_mode(ResizeMode::Incremental(128))
-                .build()
-        }),
-    );
+    test(&(|| HashSet::builder().resize_mode(ResizeMode::Incremental(128)).build()));
 }
 
 // Prints a log message if `RUST_LOG=debug` is set.
@@ -80,9 +65,5 @@ macro_rules! debug {
 
 // Returns the number of threads to use for stress testing.
 pub fn threads() -> usize {
-    if cfg!(miri) {
-        2
-    } else {
-        num_cpus::get_physical().next_power_of_two()
-    }
+    if cfg!(miri) { 2 } else { num_cpus::get_physical().next_power_of_two() }
 }

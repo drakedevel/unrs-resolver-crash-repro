@@ -1,6 +1,6 @@
+use crate::Equivalent;
 use crate::raw::utils::MapGuard;
 use crate::raw::{self, InsertResult};
-use crate::Equivalent;
 use seize::{Collector, Guard, LocalGuard, OwnedGuard};
 
 use std::collections::hash_map::RandomState;
@@ -313,10 +313,7 @@ impl<K, V, S> HashMap<K, V, S> {
     /// for as long as it is held. See the [crate-level documentation](crate#usage) for details.
     #[inline]
     pub fn pin(&self) -> HashMapRef<'_, K, V, S, LocalGuard<'_>> {
-        HashMapRef {
-            guard: self.raw.guard(),
-            map: self,
-        }
+        HashMapRef { guard: self.raw.guard(), map: self }
     }
 
     /// Returns a pinned reference to the map.
@@ -329,10 +326,7 @@ impl<K, V, S> HashMap<K, V, S> {
     /// for as long as it is held. See the [crate-level documentation](crate#usage) for details.
     #[inline]
     pub fn pin_owned(&self) -> HashMapRef<'_, K, V, S, OwnedGuard<'_>> {
-        HashMapRef {
-            guard: self.raw.owned_guard(),
-            map: self,
-        }
+        HashMapRef { guard: self.raw.owned_guard(), map: self }
     }
 
     /// Returns a guard for use with this map.
@@ -547,13 +541,9 @@ where
         // Safety: Checked the guard above.
         match self.raw.insert(key, value, false, self.raw.verify(guard)) {
             InsertResult::Inserted(value) => Ok(value),
-            InsertResult::Error {
-                current,
-                not_inserted,
-            } => Err(OccupiedError {
-                current,
-                not_inserted,
-            }),
+            InsertResult::Error { current, not_inserted } => {
+                Err(OccupiedError { current, not_inserted })
+            }
             InsertResult::Replaced(_) => unreachable!(),
         }
     }
@@ -742,8 +732,7 @@ where
         U: Fn(&V) -> V,
         K: 'g,
     {
-        self.raw
-            .update_or_insert_with(key, update, f, self.raw.verify(guard))
+        self.raw.update_or_insert_with(key, update, f, self.raw.verify(guard))
     }
 
     /// Updates an entry with a compare-and-swap (CAS) function.
@@ -895,8 +884,7 @@ where
         Q: Equivalent<K> + Hash + ?Sized,
         F: FnMut(&K, &V) -> bool,
     {
-        self.raw
-            .remove_if(key, should_remove, self.raw.verify(guard))
+        self.raw.remove_if(key, should_remove, self.raw.verify(guard))
     }
 
     /// Tries to reserve capacity for `additional` more elements to be inserted
@@ -1001,9 +989,7 @@ where
     where
         G: Guard,
     {
-        Iter {
-            raw: self.raw.iter(self.raw.verify(guard)),
-        }
+        Iter { raw: self.raw.iter(self.raw.verify(guard)) }
     }
 
     /// An iterator visiting all keys in arbitrary order.
@@ -1033,9 +1019,7 @@ where
     where
         G: Guard,
     {
-        Keys {
-            iter: self.iter(guard),
-        }
+        Keys { iter: self.iter(guard) }
     }
 
     /// An iterator visiting all values in arbitrary order.
@@ -1065,9 +1049,7 @@ where
     where
         G: Guard,
     {
-        Values {
-            iter: self.iter(guard),
-        }
+        Values { iter: self.iter(guard) }
     }
 }
 
@@ -1171,11 +1153,8 @@ where
         // Otherwise reserve half the hint (rounded up), so the map
         // will only resize twice in the worst case.
         let iter = iter.into_iter();
-        let reserve = if self.is_empty() {
-            iter.size_hint().0
-        } else {
-            (iter.size_hint().0 + 1) / 2
-        };
+        let reserve =
+            if self.is_empty() { iter.size_hint().0 } else { (iter.size_hint().0 + 1) / 2 };
 
         let guard = self.guard();
         self.reserve(reserve, &guard);
@@ -1354,13 +1333,9 @@ where
     pub fn try_insert(&self, key: K, value: V) -> Result<&V, OccupiedError<'_, V>> {
         match self.map.raw.insert(key, value, false, &self.guard) {
             InsertResult::Inserted(value) => Ok(value),
-            InsertResult::Error {
-                current,
-                not_inserted,
-            } => Err(OccupiedError {
-                current,
-                not_inserted,
-            }),
+            InsertResult::Error { current, not_inserted } => {
+                Err(OccupiedError { current, not_inserted })
+            }
             InsertResult::Replaced(_) => unreachable!(),
         }
     }
@@ -1433,9 +1408,7 @@ where
         F: FnOnce() -> V,
         U: Fn(&V) -> V,
     {
-        self.map
-            .raw
-            .update_or_insert_with(key, update, f, &self.guard)
+        self.map.raw.update_or_insert_with(key, update, f, &self.guard)
     }
 
     // Updates an entry with a compare-and-swap (CAS) function.
@@ -1522,9 +1495,7 @@ where
     /// See [`HashMap::iter`] for details.
     #[inline]
     pub fn iter(&self) -> Iter<'_, K, V, G> {
-        Iter {
-            raw: self.map.raw.iter(&self.guard),
-        }
+        Iter { raw: self.map.raw.iter(&self.guard) }
     }
 
     /// An iterator visiting all keys in arbitrary order.
@@ -1598,11 +1569,7 @@ where
     G: Guard,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list()
-            .entries(Iter {
-                raw: self.raw.clone(),
-            })
-            .finish()
+        f.debug_list().entries(Iter { raw: self.raw.clone() }).finish()
     }
 }
 

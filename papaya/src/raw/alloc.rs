@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicPtr, AtomicU8, Ordering};
 use std::{alloc, mem, ptr};
 
-use super::{probe, State};
+use super::{State, probe};
 
 // A hash-table laid out in a single allocation.
 //
@@ -107,21 +107,13 @@ impl<T> Table<T> {
     #[inline]
     pub unsafe fn from_raw(raw: *mut RawTable<T>) -> Table<T> {
         if raw.is_null() {
-            return Table {
-                raw,
-                mask: 0,
-                limit: 0,
-            };
+            return Table { raw, mask: 0, limit: 0 };
         }
 
         // Safety: The caller guarantees that the pointer is valid.
         let layout = unsafe { &*raw.cast::<TableLayout<T>>() };
 
-        Table {
-            raw,
-            mask: layout.mask,
-            limit: layout.limit,
-        }
+        Table { raw, mask: layout.mask, limit: layout.limit }
     }
 
     // Returns the metadata entry at the given index.
@@ -214,7 +206,7 @@ impl<T> Table<T> {
         let size = mem::size_of::<TableLayout<T>>()
             + (mem::size_of::<u8>() * len) // Metadata table.
             + (mem::size_of::<AtomicPtr<T>>() * len); // Entry pointers.
-                                                      //
+        //
         Layout::from_size_align(size, mem::align_of::<TableLayout<T>>()).unwrap()
     }
 }

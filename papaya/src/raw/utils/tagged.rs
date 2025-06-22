@@ -33,10 +33,7 @@ unsafe impl<T> StrictProvenance<T> for *mut T {
     where
         T: Unpack,
     {
-        Tagged {
-            raw: self,
-            ptr: self.map_addr(|addr| addr & T::MASK),
-        }
+        Tagged { raw: self, ptr: self.map_addr(|addr| addr & T::MASK) }
     }
 }
 
@@ -52,10 +49,7 @@ pub struct Tagged<T> {
 // Creates a `Tagged` from an untagged pointer.
 #[inline]
 pub fn untagged<T>(value: *mut T) -> Tagged<T> {
-    Tagged {
-        raw: value,
-        ptr: value,
-    }
+    Tagged { raw: value, ptr: value }
 }
 
 impl<T> Tagged<T>
@@ -71,10 +65,7 @@ where
     // Maps the tag of this pointer.
     #[inline]
     pub fn map_tag(self, f: impl FnOnce(usize) -> usize) -> Self {
-        Tagged {
-            raw: self.raw.map_addr(f),
-            ptr: self.ptr,
-        }
+        Tagged { raw: self.raw.map_addr(f), ptr: self.ptr }
     }
 }
 

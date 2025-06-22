@@ -14,14 +14,10 @@ pub struct Counter(Box<[CachePadded<AtomicIsize>]>);
 impl Default for Counter {
     /// Create a new `Counter`.
     fn default() -> Counter {
-        let num_cpus = std::thread::available_parallelism()
-            .map(usize::from)
-            .unwrap_or(1);
+        let num_cpus = std::thread::available_parallelism().map(usize::from).unwrap_or(1);
 
         // Round up to the next power-of-two for fast modulo.
-        let shards = (0..num_cpus.next_power_of_two())
-            .map(|_| Default::default())
-            .collect();
+        let shards = (0..num_cpus.next_power_of_two()).map(|_| Default::default()).collect();
 
         Counter(shards)
     }

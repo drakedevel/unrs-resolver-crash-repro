@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 const SIZE: usize = 10_000;
 
@@ -28,9 +28,8 @@ fn compare(c: &mut Criterion) {
     }
 
     group.bench_function("papaya", |b| {
-        let m = papaya::HashMap::<usize, usize>::builder()
-            .collector(seize::Collector::new())
-            .build();
+        let m =
+            papaya::HashMap::<usize, usize>::builder().collector(seize::Collector::new()).build();
 
         for i in RandomKeys::new().take(SIZE) {
             m.pin().insert(i, i);

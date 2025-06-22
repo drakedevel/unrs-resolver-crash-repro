@@ -1,6 +1,6 @@
+use crate::Equivalent;
 use crate::raw::utils::MapGuard;
 use crate::raw::{self, InsertResult};
-use crate::Equivalent;
 use seize::{Collector, Guard, LocalGuard, OwnedGuard};
 
 use crate::map::ResizeMode;
@@ -259,10 +259,7 @@ impl<K, S> HashSet<K, S> {
     /// for as long as it is held. See the [crate-level documentation](crate#usage) for details.
     #[inline]
     pub fn pin(&self) -> HashSetRef<'_, K, S, LocalGuard<'_>> {
-        HashSetRef {
-            guard: self.raw.guard(),
-            set: self,
-        }
+        HashSetRef { guard: self.raw.guard(), set: self }
     }
 
     /// Returns a pinned reference to the set.
@@ -275,10 +272,7 @@ impl<K, S> HashSet<K, S> {
     /// for as long as it is held. See the [crate-level documentation](crate#usage) for details.
     #[inline]
     pub fn pin_owned(&self) -> HashSetRef<'_, K, S, OwnedGuard<'_>> {
-        HashSetRef {
-            guard: self.raw.owned_guard(),
-            set: self,
-        }
+        HashSetRef { guard: self.raw.owned_guard(), set: self }
     }
 
     /// Returns a guard for use with this set.
@@ -565,9 +559,7 @@ where
     where
         G: Guard,
     {
-        Iter {
-            raw: self.raw.iter(self.raw.verify(guard)),
-        }
+        Iter { raw: self.raw.iter(self.raw.verify(guard)) }
     }
 }
 
@@ -618,11 +610,8 @@ where
         // Otherwise reserve half the hint (rounded up), so the set
         // will only resize twice in the worst case.
         let iter = iter.into_iter();
-        let reserve = if self.is_empty() {
-            iter.size_hint().0
-        } else {
-            (iter.size_hint().0 + 1) / 2
-        };
+        let reserve =
+            if self.is_empty() { iter.size_hint().0 } else { (iter.size_hint().0 + 1) / 2 };
 
         let guard = self.guard();
         self.reserve(reserve, &guard);
@@ -829,9 +818,7 @@ where
     /// See [`HashSet::iter`] for details.
     #[inline]
     pub fn iter(&self) -> Iter<'_, K, G> {
-        Iter {
-            raw: self.set.raw.iter(&self.guard),
-        }
+        Iter { raw: self.set.raw.iter(&self.guard) }
     }
 }
 
@@ -885,10 +872,6 @@ where
     G: Guard,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list()
-            .entries(Iter {
-                raw: self.raw.clone(),
-            })
-            .finish()
+        f.debug_list().entries(Iter { raw: self.raw.clone() }).finish()
     }
 }

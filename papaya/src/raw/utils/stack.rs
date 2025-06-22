@@ -22,17 +22,12 @@ struct Node<T> {
 impl<T> Stack<T> {
     /// Create a new `Stack`.
     pub fn new() -> Self {
-        Self {
-            head: AtomicPtr::new(ptr::null_mut()),
-        }
+        Self { head: AtomicPtr::new(ptr::null_mut()) }
     }
 
     /// Add an entry to the stack.
     pub fn push(&self, value: T) {
-        let node = Box::into_raw(Box::new(Node {
-            value,
-            next: ptr::null_mut(),
-        }));
+        let node = Box::into_raw(Box::new(Node { value, next: ptr::null_mut() }));
 
         loop {
             // Load the head node.
@@ -46,10 +41,7 @@ impl<T> Stack<T> {
             // Attempt to push the node.
             //
             // `Relaxed` is similarly sufficient here.
-            if self
-                .head
-                .compare_exchange(head, node, Ordering::Relaxed, Ordering::Relaxed)
-                .is_ok()
+            if self.head.compare_exchange(head, node, Ordering::Relaxed, Ordering::Relaxed).is_ok()
             {
                 break;
             }

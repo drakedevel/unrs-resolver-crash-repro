@@ -11,10 +11,7 @@ impl Probe {
     // Initialize the probe sequence.
     #[inline]
     pub fn start(hash: usize, mask: usize) -> Probe {
-        Probe {
-            i: hash & mask,
-            len: 0,
-        }
+        Probe { i: hash & mask, len: 0 }
     }
 
     // Increment the probe sequence.

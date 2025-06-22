@@ -6,7 +6,7 @@ mod tagged;
 pub use counter::Counter;
 pub use parker::Parker;
 pub use stack::Stack;
-pub use tagged::{untagged, AtomicPtrFetchOps, StrictProvenance, Tagged, Unpack};
+pub use tagged::{AtomicPtrFetchOps, StrictProvenance, Tagged, Unpack, untagged};
 
 /// A `seize::Guard` that has been verified to belong to a given map.
 pub trait VerifiedGuard: seize::Guard {}

@@ -56,9 +56,7 @@ where
 
 impl<K, V, S> MapVisitor<K, V, S> {
     pub(crate) fn new() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
+        Self { _marker: PhantomData }
     }
 }
 
@@ -140,9 +138,7 @@ where
 
 impl<K, S> SetVisitor<K, S> {
     pub(crate) fn new() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
+        Self { _marker: PhantomData }
     }
 }
 

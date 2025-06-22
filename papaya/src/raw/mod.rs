@@ -5,15 +5,15 @@ pub(crate) mod utils;
 
 use std::hash::{BuildHasher, Hash};
 use std::mem::MaybeUninit;
-use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::{hint, panic, ptr};
 
 use self::alloc::{RawTable, Table};
 use self::probe::Probe;
-use self::utils::{untagged, AtomicPtrFetchOps, Counter, Parker, StrictProvenance, Tagged};
-use crate::map::{Compute, Operation, ResizeMode};
+use self::utils::{AtomicPtrFetchOps, Counter, Parker, StrictProvenance, Tagged, untagged};
 use crate::Equivalent;
+use crate::map::{Compute, Operation, ResizeMode};
 
 use seize::{Collector, LocalGuard, OwnedGuard};
 use utils::{MapGuard, Stack, VerifiedGuard};
@@ -112,10 +112,7 @@ pub enum RawInsertResult<'g, K, V> {
     Replaced(&'g V),
 
     /// Error returned by `try_insert`.
-    Error {
-        current: &'g V,
-        not_inserted: *mut Entry<K, V>,
-    },
+    Error { current: &'g V, not_inserted: *mut Entry<K, V> },
 }
 
 // An entry in the hash-table.
@@ -338,9 +335,8 @@ where
                     // Load the full entry.
                     //
                     // Safety: `probe.i` is always in-bounds for the table length.
-                    let entry = guard
-                        .protect(unsafe { table.entry(probe.i) }, Ordering::Acquire)
-                        .unpack();
+                    let entry =
+                        guard.protect(unsafe { table.entry(probe.i) }, Ordering::Acquire).unpack();
 
                     // The entry was deleted, keep probing.
                     if entry.ptr.is_null() {
@@ -417,17 +413,11 @@ where
             }
 
             // Failed to insert the entry.
-            RawInsertResult::Error {
-                current,
-                not_inserted,
-            } => {
+            RawInsertResult::Error { current, not_inserted } => {
                 // Safety: We allocated this box above and it was not inserted into the table.
                 let not_inserted = unsafe { Box::from_raw(not_inserted) };
 
-                InsertResult::Error {
-                    current,
-                    not_inserted: not_inserted.value,
-                }
+                InsertResult::Error { current, not_inserted: not_inserted.value }
             }
         };
 
@@ -503,9 +493,8 @@ where
                     // Load the full entry.
                     //
                     // Safety: `probe.i` is always in-bounds for the table length.
-                    let entry = guard
-                        .protect(unsafe { table.entry(probe.i) }, Ordering::Acquire)
-                        .unpack();
+                    let entry =
+                        guard.protect(unsafe { table.entry(probe.i) }, Ordering::Acquire).unpack();
 
                     // The entry was deleted, keep probing.
                     if entry.ptr.is_null() {
@@ -725,9 +714,8 @@ where
                 // Load the full entry.
                 //
                 // Safety: `probe.i` is always in-bounds for the table length.
-                let mut entry = guard
-                    .protect(unsafe { table.entry(probe.i) }, Ordering::Acquire)
-                    .unpack();
+                let mut entry =
+                    guard.protect(unsafe { table.entry(probe.i) }, Ordering::Acquire).unpack();
 
                 // The entry was deleted, keep probing.
                 if entry.ptr.is_null() {
@@ -777,9 +765,7 @@ where
                             //
                             // Safety: `probe.i` is always in-bounds for the table length.
                             unsafe {
-                                table
-                                    .meta(probe.i)
-                                    .store(meta::TOMBSTONE, Ordering::Release)
+                                table.meta(probe.i).store(meta::TOMBSTONE, Ordering::Release)
                             };
 
                             // Decrement the table length.
@@ -1033,9 +1019,8 @@ where
                 // Load the entry to delete.
                 //
                 // Safety: `i` is in bounds for the table length.
-                let mut entry = guard
-                    .protect(unsafe { table.entry(i) }, Ordering::Acquire)
-                    .unpack();
+                let mut entry =
+                    guard.protect(unsafe { table.entry(i) }, Ordering::Acquire).unpack();
 
                 loop {
                     // The entry is empty or already deleted.
@@ -1132,9 +1117,8 @@ where
                 // Load the entry to delete.
                 //
                 // Safety: `i` is in bounds for the table length.
-                let mut entry = guard
-                    .protect(unsafe { table.entry(i) }, Ordering::Acquire)
-                    .unpack();
+                let mut entry =
+                    guard.protect(unsafe { table.entry(i) }, Ordering::Acquire).unpack();
 
                 loop {
                     // The entry is empty or already deleted.
@@ -1218,11 +1202,7 @@ where
 
         // The table has not been initialized yet, return a dummy iterator.
         if root.raw.is_null() {
-            return Iter {
-                i: 0,
-                guard,
-                table: root,
-            };
+            return Iter { i: 0, guard, table: root };
         }
 
         // Get a clean copy of the table to iterate over.
@@ -1272,11 +1252,7 @@ where
     /// Create a new `ComputeState` for the given function.
     #[inline]
     fn new(compute: F) -> ComputeState<F, K, V, T> {
-        ComputeState {
-            compute,
-            insert: None,
-            update: None,
-        }
+        ComputeState { compute, insert: None, update: None }
     }
 
     /// Performs a state transition.
@@ -1364,10 +1340,7 @@ impl<K, V> LazyEntry<K, V> {
                 unsafe {
                     let key = ptr::read(key);
                     let entry = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                        Box::into_raw(Box::new(Entry {
-                            value: MaybeUninit::uninit(),
-                            key,
-                        }))
+                        Box::into_raw(Box::new(Entry { value: MaybeUninit::uninit(), key }))
                     }))
                     .unwrap_or_else(|_| std::process::abort());
                     ptr::write(self, LazyEntry::Init(entry));
@@ -1455,9 +1428,7 @@ where
 
         match self.compute(key, compute, guard) {
             // Return the updated value.
-            Compute::Updated {
-                new: (_, value), ..
-            } => Some(value),
+            Compute::Updated { new: (_, value), .. } => Some(value),
 
             // There was nothing to update.
             Compute::Aborted(_) => None,
@@ -1494,9 +1465,7 @@ where
 
         match self.compute(key, compute, guard) {
             // Return the updated value.
-            Compute::Updated {
-                new: (_, value), ..
-            } => value,
+            Compute::Updated { new: (_, value), .. } => value,
 
             // Return the value we inserted.
             Compute::Inserted(_, value) => value,
@@ -1654,9 +1623,8 @@ where
                     // Load the full entry.
                     //
                     // Safety: `probe.i` is always in-bounds for the table length.
-                    let found = guard
-                        .protect(unsafe { table.entry(probe.i) }, Ordering::Acquire)
-                        .unpack();
+                    let found =
+                        guard.protect(unsafe { table.entry(probe.i) }, Ordering::Acquire).unpack();
 
                     // The entry was deleted, keep probing.
                     if found.ptr.is_null() {
@@ -1890,11 +1858,7 @@ where
         table: Table<Entry<K, V>>,
     ) -> Table<Entry<K, V>> {
         // Avoid spinning in tests, which can hide race conditions.
-        const SPIN_ALLOC: usize = if cfg!(any(test, debug_assertions)) {
-            1
-        } else {
-            7
-        };
+        const SPIN_ALLOC: usize = if cfg!(any(test, debug_assertions)) { 1 } else { 7 };
 
         // The next table is already allocated.
         if let Some(next) = table.next_table() {
@@ -1968,10 +1932,7 @@ where
         };
 
         let next_capacity = capacity.unwrap_or(next_capacity);
-        assert!(
-            next_capacity <= isize::MAX as usize,
-            "`HashMap` exceeded maximum capacity"
-        );
+        assert!(next_capacity <= isize::MAX as usize, "`HashMap` exceeded maximum capacity");
 
         // Allocate the new table while holding the lock.
         let next = Table::alloc(next_capacity);
@@ -2093,11 +2054,7 @@ where
             // We copied all that we can, wait for the table to be promoted.
             for spun in 0.. {
                 // Avoid spinning in tests, which can hide race conditions.
-                const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) {
-                    1
-                } else {
-                    7
-                };
+                const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) { 1 } else { 7 };
 
                 // Note that `Acquire` is necessary here to ensure we see the
                 // relevant modifications to the root table if see the updated
@@ -2128,9 +2085,7 @@ where
                 }
 
                 // Park until the table is promoted.
-                state
-                    .parker
-                    .park(&state.status, |status| status == State::PENDING);
+                state.parker.park(&state.status, |status| status == State::PENDING);
             }
         }
     }
@@ -2156,9 +2111,7 @@ where
         // Note that we don't need to protect the returned entry here, because
         // no one is allowed to retire the entry once we put the `COPYING` bit
         // down until it is inserted into the new table.
-        let entry = unsafe { table.entry(i) }
-            .fetch_or(Entry::COPYING, Ordering::AcqRel)
-            .unpack();
+        let entry = unsafe { table.entry(i) }.fetch_or(Entry::COPYING, Ordering::AcqRel).unpack();
 
         // The entry is a tombstone.
         if entry.raw == Entry::TOMBSTONE {
@@ -2180,10 +2133,7 @@ where
         // or removals wait until we complete the copy, and allowing us to get
         // away without a protected load. Additionally, we verified that the
         // entry is non-null, meaning that it is valid for reads.
-        unsafe {
-            self.insert_copy(entry.ptr.unpack(), false, next_table, guard)
-                .is_some()
-        }
+        unsafe { self.insert_copy(entry.ptr.unpack(), false, next_table, guard).is_some() }
     }
 
     /// Help along an in-progress resize incrementally by copying a chunk of entries.
@@ -2252,11 +2202,7 @@ where
             let state = next.state();
             for spun in 0.. {
                 // Avoid spinning in tests, which can hide race conditions.
-                const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) {
-                    1
-                } else {
-                    7
-                };
+                const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) { 1 } else { 7 };
 
                 // The copy has completed.
                 //
@@ -2282,9 +2228,7 @@ where
                 }
 
                 // Park until the table is promoted.
-                state
-                    .parker
-                    .park(&state.status, |status| status == State::PENDING);
+                state.parker.park(&state.status, |status| status == State::PENDING);
             }
         }
     }
@@ -2331,14 +2275,11 @@ where
         // away without a protected load. Additionally, we verified that the
         // entry is non-null, meaning that it is valid for reads.
         unsafe {
-            self.insert_copy(new_entry, true, next_table, guard)
-                .unwrap();
+            self.insert_copy(new_entry, true, next_table, guard).unwrap();
         }
 
         // Mark the entry as copied.
-        let copied = found
-            .raw
-            .map_addr(|addr| addr | Entry::COPYING | Entry::COPIED);
+        let copied = found.raw.map_addr(|addr| addr | Entry::COPYING | Entry::COPIED);
 
         // Note that we already wrote the COPYING bit, so no one is writing to the old
         // entry except us.
@@ -2531,11 +2472,7 @@ where
     #[inline(never)]
     fn wait_copied(&self, i: usize, table: &Table<Entry<K, V>>) {
         // Avoid spinning in tests, which can hide race conditions.
-        const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) {
-            1
-        } else {
-            5
-        };
+        const SPIN_WAIT: usize = if cfg!(any(test, debug_assertions)) { 1 } else { 5 };
 
         let entry = unsafe { table.entry(i) };
 
@@ -2662,10 +2599,8 @@ where
             // Load the entry.
             //
             // Safety: We verified that `self.i` is in-bounds above.
-            let entry = self
-                .guard
-                .protect(unsafe { self.table.entry(self.i) }, Ordering::Acquire)
-                .unpack();
+            let entry =
+                self.guard.protect(unsafe { self.table.entry(self.i) }, Ordering::Acquire).unpack();
 
             // The entry was deleted.
             if entry.ptr.is_null() {
@@ -2710,11 +2645,7 @@ where
 impl<K, V, G> Clone for Iter<'_, K, V, G> {
     #[inline]
     fn clone(&self) -> Self {
-        Iter {
-            i: self.i,
-            table: self.table,
-            guard: self.guard,
-        }
+        Iter { i: self.i, table: self.table, guard: self.guard }
     }
 }
 

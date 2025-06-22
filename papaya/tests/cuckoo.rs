@@ -4,9 +4,9 @@ use papaya::{HashMap, ResizeMode};
 
 use rand::distributions::{Distribution, Uniform};
 
-use std::sync::atomic::Ordering;
 use std::sync::Mutex;
-use std::sync::{atomic::AtomicBool, Arc};
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, atomic::AtomicBool};
 use std::thread;
 
 #[cfg(not(miri))]
@@ -80,24 +80,18 @@ fn stress_insert_thread(env: Arc<Environment>) {
     while !env.finished.load(Ordering::SeqCst) {
         let idx = env.ind_dist.sample(&mut rng);
         let in_use = env.in_use.lock().unwrap();
-        if (*in_use)[idx]
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
-            .is_ok()
+        if (*in_use)[idx].compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed).is_ok()
         {
             let key = env.keys[idx];
             let val1 = env.val_dist1.sample(&mut rng);
             let val2 = env.val_dist2.sample(&mut rng);
             let res1 = if !env.table1.contains_key(&key, &guard1) {
-                env.table1
-                    .insert(key, val1, &guard1)
-                    .map_or(true, |_| false)
+                env.table1.insert(key, val1, &guard1).map_or(true, |_| false)
             } else {
                 false
             };
             let res2 = if !env.table2.contains_key(&key, &guard2) {
-                env.table2
-                    .insert(key, val2, &guard2)
-                    .map_or(true, |_| false)
+                env.table2.insert(key, val2, &guard2).map_or(true, |_| false)
             } else {
                 false
             };
@@ -126,9 +120,7 @@ fn stress_delete_thread(env: Arc<Environment>) {
     while !env.finished.load(Ordering::SeqCst) {
         let idx = env.ind_dist.sample(&mut rng);
         let in_use = env.in_use.lock().unwrap();
-        if (*in_use)[idx]
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
-            .is_ok()
+        if (*in_use)[idx].compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed).is_ok()
         {
             let key = env.keys[idx];
             let res1 = env.table1.remove(&key, &guard1).map_or(false, |_| true);
@@ -154,9 +146,7 @@ fn stress_find_thread(env: Arc<Environment>) {
     while !env.finished.load(Ordering::SeqCst) {
         let idx = env.ind_dist.sample(&mut rng);
         let in_use = env.in_use.lock().unwrap();
-        if (*in_use)[idx]
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed)
-            .is_ok()
+        if (*in_use)[idx].compare_exchange(false, true, Ordering::SeqCst, Ordering::Relaxed).is_ok()
         {
             let key = env.keys[idx];
             let in_table = env.in_table.lock().unwrap();
@@ -192,12 +182,8 @@ fn stress_test_blocking() {
 #[ignore]
 fn stress_test_incremental() {
     let mut root = Environment::new();
-    root.table1 = HashMap::builder()
-        .resize_mode(ResizeMode::Incremental(1024))
-        .build();
-    root.table2 = HashMap::builder()
-        .resize_mode(ResizeMode::Incremental(1024))
-        .build();
+    root.table1 = HashMap::builder().resize_mode(ResizeMode::Incremental(1024)).build();
+    root.table2 = HashMap::builder().resize_mode(ResizeMode::Incremental(1024)).build();
     run(Arc::new(root));
 }
 
@@ -205,12 +191,8 @@ fn stress_test_incremental() {
 #[ignore]
 fn stress_test_incremental_slow() {
     let mut root = Environment::new();
-    root.table1 = HashMap::builder()
-        .resize_mode(ResizeMode::Incremental(1))
-        .build();
-    root.table2 = HashMap::builder()
-        .resize_mode(ResizeMode::Incremental(1))
-        .build();
+    root.table1 = HashMap::builder().resize_mode(ResizeMode::Incremental(1)).build();
+    root.table2 = HashMap::builder().resize_mode(ResizeMode::Incremental(1)).build();
     run(Arc::new(root));
 }
 

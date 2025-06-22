@@ -90,7 +90,15 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         }
         println!("TRACE:{}: -> miss", self.ts());
         for entry in paths.iter() {
-            println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?})", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path);
+            println!(
+                "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?})",
+                self.ts(),
+                entry as *const FsCachedPath,
+                entry.0.as_ref() as *const CachedPathImpl,
+                entry.hash,
+                entry.path,
+                entry.path.as_ref() as *const Path
+            );
         }
         let parent = path.parent().map(|p| self.value(p));
         let cached_path = FsCachedPath(Arc::new(CachedPathImpl::new(
@@ -101,10 +109,23 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
         let to_insert = cached_path.clone();
         println!(
             "TRACE:{}: insert(FsCachedPath {{ hash: {}, path: {:?}, ({:?}) .. }} arc {:?})",
-            self.ts(), to_insert.hash, to_insert.path, to_insert.path.as_ref() as *const Path, to_insert.0.as_ref() as *const CachedPathImpl
+            self.ts(),
+            to_insert.hash,
+            to_insert.path,
+            to_insert.path.as_ref() as *const Path,
+            to_insert.0.as_ref() as *const CachedPathImpl
         );
         for entry in paths.iter() {
-            println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path, entry.equivalent(&cached_path));
+            println!(
+                "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}",
+                self.ts(),
+                entry as *const FsCachedPath,
+                entry.0.as_ref() as *const CachedPathImpl,
+                entry.hash,
+                entry.path,
+                entry.path.as_ref() as *const Path,
+                entry.equivalent(&cached_path)
+            );
         }
         let insert_res = paths.insert(to_insert);
         println!("TRACE:{}: -> inserted={insert_res}", self.ts());
@@ -115,7 +136,16 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             if bugged {
                 println!("TRACE:{}: BUGGED", self.ts());
                 for entry in paths.iter() {
-                    println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path, entry.equivalent(&cached_path));
+                    println!(
+                        "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}",
+                        self.ts(),
+                        entry as *const FsCachedPath,
+                        entry.0.as_ref() as *const CachedPathImpl,
+                        entry.hash,
+                        entry.path,
+                        entry.path.as_ref() as *const Path,
+                        entry.equivalent(&cached_path)
+                    );
                 }
                 // panic!("Inserted record couldn't be retrieved!");
             }

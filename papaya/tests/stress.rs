@@ -3,9 +3,9 @@ use rand::prelude::*;
 
 use std::hash::Hash;
 use std::ops::Range;
+use std::sync::Barrier;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
-use std::sync::Barrier;
 use std::thread;
 
 mod common;
@@ -106,9 +106,7 @@ fn insert_overwrite_stress() {
     const ITERATIONS: usize = if cfg!(miri) { 1 } else { 32 };
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries
@@ -118,9 +116,7 @@ fn insert_overwrite_stress() {
         for _ in (0..ITERATIONS).inspect(|e| debug!("{e}/{ITERATIONS}")) {
             let map = map();
 
-            let counters = (0..ENTRIES)
-                .map(|_| AtomicUsize::new(0))
-                .collect::<Vec<_>>();
+            let counters = (0..ENTRIES).map(|_| AtomicUsize::new(0)).collect::<Vec<_>>();
 
             let threads = threads();
             let barrier = Barrier::new(threads);
@@ -187,9 +183,7 @@ fn update_stress() {
     const ITERATIONS: usize = if cfg!(miri) { 1 } else { 48 };
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries
@@ -306,9 +300,7 @@ fn update_or_insert_stress() {
 
     let threads = threads();
 
-    let entries = (0..(threads * OPERATIONS))
-        .flat_map(|_| (0..ENTRIES))
-        .collect::<Vec<_>>();
+    let entries = (0..(threads * OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
 
     let chunk = ENTRIES * OPERATIONS;
 
@@ -363,9 +355,7 @@ fn remove_update_or_insert_stress() {
     let threads = threads();
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries
@@ -444,9 +434,7 @@ fn conditional_remove_update_or_insert_stress() {
     let threads = threads();
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries
@@ -527,9 +515,7 @@ fn remove_if_update_or_insert_stress() {
     let threads = threads();
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries
@@ -605,9 +591,7 @@ fn insert_remove_stress() {
     const ITERATIONS: usize = if cfg!(miri) { 1 } else { 48 };
 
     let entries = || {
-        let mut entries = (0..(OPERATIONS))
-            .flat_map(|_| (0..ENTRIES))
-            .collect::<Vec<_>>();
+        let mut entries = (0..(OPERATIONS)).flat_map(|_| (0..ENTRIES)).collect::<Vec<_>>();
         let mut rng = rand::thread_rng();
         entries.shuffle(&mut rng);
         entries

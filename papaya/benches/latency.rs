@@ -17,9 +17,7 @@ fn main() {
     });
 
     println!("=== papaya (blocking) ===");
-    let map = papaya::HashMap::builder()
-        .resize_mode(papaya::ResizeMode::Blocking)
-        .build();
+    let map = papaya::HashMap::builder().resize_mode(papaya::ResizeMode::Blocking).build();
 
     p99_insert(map.clone(), |map, i| {
         map.pin().insert(i, ());
@@ -80,8 +78,7 @@ fn p99_concurrent_insert<T: Sync>(name: &str, map: T, insert: impl Fn(&T, usize)
                         max = Some(elapsed);
                     }
 
-                    hist.record(elapsed.as_micros().try_into().unwrap())
-                        .unwrap();
+                    hist.record(elapsed.as_micros().try_into().unwrap()).unwrap();
                 }
 
                 println!("p99 concurrent insert: {}ms", max.unwrap().as_millis());
@@ -93,6 +90,5 @@ fn p99_concurrent_insert<T: Sync>(name: &str, map: T, insert: impl Fn(&T, usize)
 
     let mut f = File::create(format!("{name}.hist")).unwrap();
     let mut s = V2DeflateSerializer::new();
-    s.serialize(&hist, &mut EncoderWriter::new(&mut f, &STANDARD))
-        .unwrap();
+    s.serialize(&hist, &mut EncoderWriter::new(&mut f, &STANDARD)).unwrap();
 }

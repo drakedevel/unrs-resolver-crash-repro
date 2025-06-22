@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicPtr, AtomicU64, AtomicU8, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicPtr, AtomicU8, AtomicU64, Ordering};
 use std::thread::{self, Thread};
 
 // A simple thread parker.
@@ -62,10 +62,7 @@ impl Parker {
                 // Don't need to park, remove our thread if it wasn't already unparked.
                 let thread = {
                     let mut state = self.state.lock().unwrap();
-                    state
-                        .threads
-                        .get_mut(&key)
-                        .and_then(|threads| threads.remove(&id))
+                    state.threads.get_mut(&key).and_then(|threads| threads.remove(&id))
                 };
 
                 if thread.is_some() {
@@ -80,11 +77,7 @@ impl Parker {
                 thread::park();
 
                 let mut state = self.state.lock().unwrap();
-                if !state
-                    .threads
-                    .get_mut(&key)
-                    .is_some_and(|threads| threads.contains_key(&id))
-                {
+                if !state.threads.get_mut(&key).is_some_and(|threads| threads.contains_key(&id)) {
                     break;
                 }
             }
