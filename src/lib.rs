@@ -277,16 +277,29 @@ impl<C: Cache<Cp = FsCachedPath>> ResolverGeneric<C> {
         specifier: &str,
         ctx: &mut Ctx,
     ) -> Result<Resolution<C>, ResolveError> {
+        println!("resolve_impl({path:?}, {specifier:?}, {ctx:#?})");
         ctx.with_fully_specified(self.options.fully_specified);
 
         let cached_path = if self.options.symlinks {
-            self.load_realpath(&self.cache.value(path))?
+            println!("in symlink branch, calling cache.value({path:?})");
+            let cache_res = self.cache.value(path);
+            println!("in symlink branch, calling load_realpath(...)");
+            self.load_realpath(&cache_res)?
         } else {
             path.to_path_buf()
         };
 
+        println!("calling cache.value({cached_path:?})");
         let cached_path = self.cache.value(&cached_path);
-        let cached_path = self.require(&cached_path, specifier, ctx)?;
+        println!("calling self.require(...)");
+        let cached_path = match self.require(&cached_path, specifier, ctx) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("require failed with {e:?}");
+                return Err(e);
+            }
+        };
+        println!("require succeeded");
 
         let path = if self.options.symlinks {
             self.load_realpath(&cached_path)?

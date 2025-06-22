@@ -24,6 +24,7 @@ use crate::{
     context::ResolveContext as Ctx,
     path::PathUtil,
 };
+use std::time::Instant;
 
 static THREAD_COUNT: AtomicU64 = AtomicU64::new(1);
 
@@ -35,11 +36,28 @@ thread_local! {
 }
 
 /// Cache implementation used for caching filesystem access.
-#[derive(Default)]
 pub struct FsCache<Fs> {
     pub(crate) fs: Fs,
     paths: HashSet<FsCachedPath, BuildHasherDefault<IdentityHasher>>,
     tsconfigs: HashMap<PathBuf, Arc<TsConfigSerde>, BuildHasherDefault<FxHasher>>,
+    epoch: Instant,
+}
+
+impl<Fs: Default> Default for FsCache<Fs> {
+    fn default() -> Self {
+        Self {
+            fs: Default::default(),
+            paths: Default::default(),
+            tsconfigs: Default::default(),
+            epoch: Instant::now(),
+        }
+    }
+}
+
+impl<Fs> FsCache<Fs> {
+    fn ts(&self) -> u128 {
+        self.epoch.elapsed().as_micros()
+    }
 }
 
 impl<Fs: FileSystem> Cache for FsCache<Fs> {
@@ -48,6 +66,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
     type Tc = TsConfigSerde;
 
     fn clear(&self) {
+        println!("TRACE:{}: pin/clear", self.ts());
         self.paths.pin().clear();
         self.tsconfigs.pin().clear();
     }
@@ -62,8 +81,16 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             hasher.finish()
         };
         let paths = self.paths.pin();
+        println!("TRACE:{}: enter pin (tid={:?})", self.ts(), std::thread::current().id());
+        let get_key = BorrowedCachedPath { hash, path };
+        println!("TRACE:{}: get({get_key:?})", self.ts());
         if let Some(entry) = paths.get(&BorrowedCachedPath { hash, path }) {
+            println!("TRACE:{}: -> hit", self.ts());
             return entry.clone();
+        }
+        println!("TRACE:{}: -> miss", self.ts());
+        for entry in paths.iter() {
+            println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?})", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path);
         }
         let parent = path.parent().map(|p| self.value(p));
         let cached_path = FsCachedPath(Arc::new(CachedPathImpl::new(
@@ -71,7 +98,29 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             path.to_path_buf().into_boxed_path(),
             parent,
         )));
-        paths.insert(cached_path.clone());
+        let to_insert = cached_path.clone();
+        println!(
+            "TRACE:{}: insert(FsCachedPath {{ hash: {}, path: {:?}, ({:?}) .. }} arc {:?})",
+            self.ts(), to_insert.hash, to_insert.path, to_insert.path.as_ref() as *const Path, to_insert.0.as_ref() as *const CachedPathImpl
+        );
+        for entry in paths.iter() {
+            println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path, entry.equivalent(&cached_path));
+        }
+        let insert_res = paths.insert(to_insert);
+        println!("TRACE:{}: -> inserted={insert_res}", self.ts());
+        if insert_res {
+            assert!(BorrowedCachedPath { hash, path }.equivalent(&cached_path));
+            assert!(cached_path.eq(&cached_path));
+            let bugged = paths.get(&BorrowedCachedPath { hash, path }).is_none();
+            if bugged {
+                println!("TRACE:{}: BUGGED", self.ts());
+                for entry in paths.iter() {
+                    println!("TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}", self.ts(), entry as *const FsCachedPath, entry.0.as_ref() as *const CachedPathImpl, entry.hash, entry.path, entry.path.as_ref() as *const Path, entry.equivalent(&cached_path));
+                }
+                // panic!("Inserted record couldn't be retrieved!");
+            }
+        }
+        println!("TRACE:{}: exit pin", self.ts());
         cached_path
     }
 
@@ -208,6 +257,7 @@ impl<Fs: FileSystem> FsCache<Fs> {
                 .hasher(BuildHasherDefault::default())
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
+            epoch: Instant::now(),
         }
     }
 
@@ -215,6 +265,7 @@ impl<Fs: FileSystem> FsCache<Fs> {
     ///
     /// <https://github.com/parcel-bundler/parcel/blob/4d27ec8b8bd1792f536811fef86e74a31fa0e704/crates/parcel-resolver/src/cache.rs#L232>
     fn canonicalize_impl(&self, path: &FsCachedPath) -> Result<FsCachedPath, ResolveError> {
+        println!("canonicalize_impl(path={:?})", path.path);
         // Check if this thread is already canonicalizing. If so, we have found a circular symlink.
         // If a different thread is canonicalizing, OnceLock will queue this thread to wait for the result.
         let tid = THREAD_ID.with(|t| *t);
@@ -222,59 +273,68 @@ impl<Fs: FileSystem> FsCache<Fs> {
             return Err(io::Error::new(io::ErrorKind::NotFound, "Circular symlink").into());
         }
 
-        path.canonicalized
-            .get_or_init(|| {
-                path.canonicalizing.store(tid, Ordering::Release);
+        println!("  already inited={}", path.canonicalized.get().is_some());
+        let res = path.canonicalized.get_or_init(|| {
+            path.canonicalizing.store(tid, Ordering::Release);
 
-                let res = path.parent().map_or_else(
-                    || Ok(path.normalize_root(self)),
-                    |parent| {
-                        self.canonicalize_impl(parent).and_then(|parent_canonical| {
-                            let normalized = parent_canonical.normalize_with(
-                                path.path().strip_prefix(parent.path()).unwrap(),
-                                self,
-                            );
+            let res = path.parent().map_or_else(
+                || {
+                    println!("  calling normalize_root");
+                    Ok(path.normalize_root(self))
+                },
+                |parent| {
+                    println!("  canonicalizing parent");
+                    self.canonicalize_impl(parent).and_then(|parent_canonical| {
+                        println!("  parent_canonical.path={:?}", parent_canonical.path);
+                        let normalized = parent_canonical
+                            .normalize_with(path.path().strip_prefix(parent.path()).unwrap(), self);
+                        println!("  normalized.path={:?}", normalized.path);
 
-                            if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
-                                match self.fs.read_link(normalized.path()) {
-                                    Ok(link) => {
-                                        if link.is_absolute() {
-                                            return self
-                                                .canonicalize_impl(&self.value(&link.normalize()));
-                                        } else if let Some(dir) = normalized.parent() {
-                                            // Symlink is relative `../../foo.js`, use the path directory
-                                            // to resolve this symlink.
-                                            return self.canonicalize_impl(
-                                                &dir.normalize_with(&link, self),
-                                            );
-                                        }
-                                        debug_assert!(
-                                            false,
-                                            "Failed to get path parent for {:?}.",
-                                            normalized.path()
-                                        );
+                        if self.fs.symlink_metadata(path.path()).is_ok_and(|m| m.is_symlink) {
+                            println!("  path is symlink");
+                            match self.fs.read_link(normalized.path()) {
+                                Ok(link) => {
+                                    if link.is_absolute() {
+                                        return self
+                                            .canonicalize_impl(&self.value(&link.normalize()));
+                                    } else if let Some(dir) = normalized.parent() {
+                                        // Symlink is relative `../../foo.js`, use the path directory
+                                        // to resolve this symlink.
+                                        return self
+                                            .canonicalize_impl(&dir.normalize_with(&link, self));
                                     }
-                                    Err(ResolveError::PathNotSupported(_)) => {
-                                        // No need to follow symlink if the target path cannot be imported in NodeJS.
-                                        // Note that per current implementation, if there is a symlink chain, like
-                                        //      A --> B --> C
-                                        // we won't follow the symlink as long as try_read_link(B) is None,
-                                        // regardless of whether C is a valid path for NodeJS. This is a corner case.
-                                        // We may need to revisit this in the future.
-                                    }
-                                    Err(e) => return Err(e),
+                                    debug_assert!(
+                                        false,
+                                        "Failed to get path parent for {:?}.",
+                                        normalized.path()
+                                    );
                                 }
+                                Err(ResolveError::PathNotSupported(_)) => {
+                                    // No need to follow symlink if the target path cannot be imported in NodeJS.
+                                    // Note that per current implementation, if there is a symlink chain, like
+                                    //      A --> B --> C
+                                    // we won't follow the symlink as long as try_read_link(B) is None,
+                                    // regardless of whether C is a valid path for NodeJS. This is a corner case.
+                                    // We may need to revisit this in the future.
+                                }
+                                Err(e) => return Err(e),
                             }
+                        } else {
+                            println!("  path is not symlink");
+                        }
 
-                            Ok(normalized)
-                        })
-                    },
-                );
+                        Ok(normalized)
+                    })
+                },
+            );
 
-                path.canonicalizing.store(0, Ordering::Release);
-                res
-            })
-            .clone()
+            path.canonicalizing.store(0, Ordering::Release);
+            res
+        });
+        println!("  get_or_init returned is_ok={}", res.is_ok());
+        let res_cloned = res.clone();
+        println!("clone returned");
+        return res_cloned;
     }
 }
 
@@ -475,6 +535,7 @@ impl PartialEq for FsCachedPath {
 
 impl Eq for FsCachedPath {}
 
+#[derive(Debug)]
 struct BorrowedCachedPath<'a> {
     hash: u64,
     path: &'a Path,
