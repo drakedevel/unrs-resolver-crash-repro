@@ -18,6 +18,12 @@ pub struct HashSet<K, S = RandomState> {
     raw: raw::HashMap<K, (), S>,
 }
 
+impl<K, S> HashSet<K, S> {
+    pub fn dump_state(&self) {
+        self.raw.dump_state(self.raw.verify(&self.guard()));
+    }
+}
+
 // Safety: We only ever hand out &K through shared references to the map,
 // so normal Send/Sync rules apply. We never expose owned or mutable references
 // to keys or values.

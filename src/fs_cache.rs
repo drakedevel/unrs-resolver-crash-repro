@@ -89,6 +89,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             return entry.clone();
         }
         println!("TRACE:{}: -> miss", self.ts());
+        self.paths.dump_state();
         for entry in paths.iter() {
             println!(
                 "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?})",
@@ -116,6 +117,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             to_insert.0.as_ref() as *const CachedPathImpl
         );
         for entry in paths.iter() {
+            self.paths.dump_state();
             println!(
                 "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}",
                 self.ts(),
@@ -135,6 +137,7 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             let bugged = paths.get(&BorrowedCachedPath { hash, path }).is_none();
             if bugged {
                 println!("TRACE:{}: BUGGED", self.ts());
+                self.paths.dump_state();
                 for entry in paths.iter() {
                     println!(
                         "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}",

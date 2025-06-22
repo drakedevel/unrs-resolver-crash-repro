@@ -297,6 +297,17 @@ impl<K, V, S> HashMap<K, V, S> {
     fn is_incremental(&self) -> bool {
         matches!(self.resize, ResizeMode::Incremental(_))
     }
+
+    pub fn dump_state(&self, guard: &impl VerifiedGuard) {
+        let root = self.root(guard);
+        if root.raw.is_null() {
+            println!("Table not yet allocated");
+        } else {
+            root.dump_state(|_e| {
+                // TODO
+            });
+        }
+    }
 }
 
 impl<K, V, S> HashMap<K, V, S>

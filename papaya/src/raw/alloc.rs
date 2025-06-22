@@ -209,6 +209,29 @@ impl<T> Table<T> {
         //
         Layout::from_size_align(size, mem::align_of::<TableLayout<T>>()).unwrap()
     }
+
+    pub fn dump_state<F: Fn(&T) -> ()>(&self, inspect: F) {
+        assert!(self.next_table().is_none());
+        println!("Entries (length = {}) T={}:", self.len(), std::any::type_name::<T>());
+        for i in 0..self.len() {
+            let meta = unsafe { self.meta(i) }.load(Ordering::SeqCst);
+            let entry = unsafe { self.entry(i) }.load(Ordering::SeqCst);
+            if meta == 0x80 && entry.is_null() {
+                // println!("  [{i:3}] empty");
+            } else if meta == 0xff && entry.addr() == 2 {
+                println!("  [{i:3}] tombstone");
+            } else {
+                println!("  [{i:3}] meta={meta:02x} ptr={entry:?}");
+                if !entry.is_aligned() {
+                    println!("    UNALIGNED");
+                } else if entry.is_null() {
+                    println!("    NULL");
+                } else {
+                    inspect(unsafe { &*entry });
+                }
+            }
+        }
+    }
 }
 
 #[test]
