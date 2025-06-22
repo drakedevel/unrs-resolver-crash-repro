@@ -116,7 +116,7 @@ pub enum RawInsertResult<'g, K, V> {
 }
 
 // An entry in the hash-table.
-#[repr(C, align(8))]
+#[repr(C)]
 pub struct Entry<K, V> {
     /// The key for this entry.
     pub key: K,
