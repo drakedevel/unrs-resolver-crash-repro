@@ -2590,9 +2590,12 @@ where
             return None;
         }
 
+        println!("running Iter::next(), i = {}", self.i);
         loop {
+            println!("  top of loop, i = {}", self.i);
             // Iterated over every entry in the table, we're done.
             if self.i >= self.table.len() {
+                println!("  i >= len, returning");
                 return None;
             }
 
@@ -2600,9 +2603,11 @@ where
             //
             // Safety: We verified that `self.i` is in-bounds above.
             let meta = unsafe { self.table.meta(self.i) }.load(Ordering::Acquire);
+            println!("  got meta = {meta:02x}");
 
             // The entry is empty or deleted.
             if matches!(meta, meta::EMPTY | meta::TOMBSTONE) {
+                println!("  empty or tombstone, continuing");
                 self.i += 1;
                 continue;
             }
@@ -2612,9 +2617,11 @@ where
             // Safety: We verified that `self.i` is in-bounds above.
             let entry =
                 self.guard.protect(unsafe { self.table.entry(self.i) }, Ordering::Acquire).unpack();
+            println!("  got entry raw={:?} ptr={:?}", entry.raw, entry.ptr);
 
             // The entry was deleted.
             if entry.ptr.is_null() {
+                println!("  null, continuing");
                 self.i += 1;
                 continue;
             }
@@ -2623,6 +2630,7 @@ where
             // `Acquire` and ensured that it is non-null, meaning it is valid for reads as long
             // as we hold the guard.
             let entry_ref = unsafe { &(*entry.ptr) };
+            println!("  got ref to entry, returning");
 
             self.i += 1;
             return Some((&entry_ref.key, &entry_ref.value));

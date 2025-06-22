@@ -116,8 +116,8 @@ impl<Fs: FileSystem> Cache for FsCache<Fs> {
             to_insert.path.as_ref() as *const Path,
             to_insert.0.as_ref() as *const CachedPathImpl
         );
+        self.paths.dump_state();
         for entry in paths.iter() {
-            self.paths.dump_state();
             println!(
                 "TRACE:{}: entry {:?} (arc={:?}) hash={} path={:?} ({:?}) equiv={}",
                 self.ts(),
