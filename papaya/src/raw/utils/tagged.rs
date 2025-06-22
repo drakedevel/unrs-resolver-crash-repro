@@ -33,6 +33,9 @@ unsafe impl<T> StrictProvenance<T> for *mut T {
     where
         T: Unpack,
     {
+        const {
+            assert!(align_of::<T>() > !T::MASK);
+        }
         Tagged { raw: self, ptr: self.map_addr(|addr| addr & T::MASK) }
     }
 }
