@@ -1,6 +1,6 @@
-#[cfg(not(any(target_arch = "arm", target_os = "freebsd", target_family = "wasm")))]
-#[global_allocator]
-static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
+//#[cfg(not(any(target_arch = "arm", target_os = "freebsd", target_family = "wasm")))]
+//#[global_allocator]
+//static ALLOC: mimalloc_safe::MiMalloc = mimalloc_safe::MiMalloc;
 
 use std::{
     path::{Path, PathBuf},
